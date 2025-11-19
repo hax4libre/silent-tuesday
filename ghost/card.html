@@ -25,9 +25,9 @@
         align-items: center;
     }
     /* STATUS COLORS */
-    .status-ok { background: #2da44e; }      /* GitHub Green */
-    .status-warn { background: #d29922; }    /* GitHub Orange */
-    .status-fail { background: #cf222e; }    /* GitHub Red */
+    .status-ok { background: #2da44e; }      /* Green */
+    .status-warn { background: #d29922; }    /* Orange */
+    .status-fail { background: #cf222e; }    /* Red */
 
     .st-title { font-weight: 600; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
     .st-status-text { font-weight: 800; font-size: 18px; }
@@ -44,8 +44,8 @@
 
 <script>
 (async function() {
-    // Point to your Cloudflare Pages URL
-    const API_URL = "https://silent-tuesday.pages.dev/"; 
+    // Update Cloudflare Worker URL
+    const WORKER_URL = "https://silent-tuesday.hax4libre.workers.dev/"; 
     
     const container = document.getElementById('silent-tuesday-monitor');
 
@@ -58,13 +58,13 @@
     }
 
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch(WORKER_URL);
         if (!response.ok) throw new Error("API Unreachable");
         
         const json = await response.json();
         const meta = json.patentFileWrapperDataBag[0].applicationMetaData;
 
-        // --- LOGIC: IS THE SYSTEM BROKEN? ---
+        // IS IT BROKEN?
         const actualGrantDate = meta.grantDate; // YYYY-MM-DD
         const expectedDate = getLastExpectedTuesday();
         
@@ -78,12 +78,12 @@
                 // It's Tuesday, but they haven't dropped YET (usually drop by 6AM EST)
                 status = "PENDING";
                 cssClass = "status-warn";
-                message = "It is Tuesday, but the patent batch has not been published. There may be a delay.";
+                message = "Today's patents have not been published yet. There may be a delay.";
             } else {
                 // It is past Tuesday and the data matches an OLD date.
                 status = "SYSTEM FAILURE";
                 cssClass = "status-fail";
-                message = `<strong>WARNING:</strong> The USPTO failed to grant patents for the week of ${expectedDate}. Last known activity was ${actualGrantDate}.`;
+                message = `<strong>WARNING:</strong> USPTO failed to publish patents for the week of ${expectedDate}. Last known activity was ${actualGrantDate}.`;
             }
         }
 
