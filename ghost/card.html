@@ -1,0 +1,122 @@
+<div id="silent-tuesday-monitor">
+    <div class="st-loading">Initializing connection to USPTO...</div>
+</div>
+
+<style>
+    /* --- SILENT TUESDAY THEME --- */
+    #silent-tuesday-monitor {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        margin: 3em 0;
+    }
+    .st-card {
+        background: #fff;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        max-width: 650px;
+        margin: 0 auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .st-header {
+        padding: 15px 20px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    /* STATUS COLORS */
+    .status-ok { background: #2da44e; }      /* GitHub Green */
+    .status-warn { background: #d29922; }    /* GitHub Orange */
+    .status-fail { background: #cf222e; }    /* GitHub Red */
+
+    .st-title { font-weight: 600; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
+    .st-status-text { font-weight: 800; font-size: 18px; }
+
+    .st-body { padding: 25px; }
+    .st-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .st-metric { border-left: 3px solid #eee; padding-left: 15px; }
+    .st-label { font-size: 11px; text-transform: uppercase; color: #666; font-weight: 700; margin-bottom: 5px; }
+    .st-value { font-size: 20px; color: #24292f; font-weight: 600; }
+    
+    .st-info { background: #f6f8fa; padding: 15px; border-radius: 6px; font-size: 13px; color: #57606a; line-height: 1.5; }
+    .st-loading { text-align: center; padding: 40px; color: #666; font-style: italic; }
+</style>
+
+<script>
+(async function() {
+    // Point to your Cloudflare Pages URL
+    const API_URL = "https://silent-tuesday.pages.dev/"; 
+    
+    const container = document.getElementById('silent-tuesday-monitor');
+
+    // Find the date of the most recent Tuesday (or today if it is Tuesday)
+    function getLastExpectedTuesday() {
+        const d = new Date();
+        const day = d.getDay(); // 0=Sun, 1=Mon, 2=Tue...
+        const diff = d.getDate() - day + (day < 2 ? -5 : 2);
+        return new Date(d.setDate(diff)).toISOString().split('T')[0];
+    }
+
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error("API Unreachable");
+        
+        const json = await response.json();
+        const meta = json.patentFileWrapperDataBag[0].applicationMetaData;
+
+        // --- LOGIC: IS THE SYSTEM BROKEN? ---
+        const actualGrantDate = meta.grantDate; // YYYY-MM-DD
+        const expectedDate = getLastExpectedTuesday();
+        
+        let status = "OPERATIONAL";
+        let cssClass = "status-ok";
+        let message = `The USPTO is functioning. The latest patent batch was released on schedule.`;
+
+        if (actualGrantDate !== expectedDate) {
+            const today = new Date().toISOString().split('T')[0];
+            if (today === expectedDate) {
+                // It's Tuesday, but they haven't dropped YET (usually drop by 6AM EST)
+                status = "PENDING";
+                cssClass = "status-warn";
+                message = "It is Tuesday, but the patent batch has not been published. There may be a delay.";
+            } else {
+                // It is past Tuesday and the data matches an OLD date.
+                status = "SYSTEM FAILURE";
+                cssClass = "status-fail";
+                message = `<strong>WARNING:</strong> The USPTO failed to grant patents for the week of ${expectedDate}. Last known activity was ${actualGrantDate}.`;
+            }
+        }
+
+        // --- RENDER ---
+        container.innerHTML = `
+            <div class="st-card">
+                <div class="st-header ${cssClass}">
+                    <span class="st-title">USPTO Status</span>
+                    <span class="st-status-text">${status}</span>
+                </div>
+                <div class="st-body">
+                    <div class="st-grid">
+                        <div class="st-metric">
+                            <div class="st-label">Expected Drop</div>
+                            <div class="st-value">${expectedDate}</div>
+                        </div>
+                        <div class="st-metric">
+                            <div class="st-label">Latest Grant</div>
+                            <div class="st-value">${actualGrantDate}</div>
+                        </div>
+                    </div>
+                    <div class="st-info">
+                        <div class="st-label">Latest Record</div>
+                        Patent <strong>#${meta.patentNumber}</strong>: "${meta.inventionTitle}"
+                        <div style="margin-top:10px; border-top:1px solid #ddd; padding-top:10px;">${message}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = `<div style="text-align:center; padding:30px; color:#cf222e;"><strong>Connection Error:</strong> Unable to verify USPTO status.</div>`;
+    }
+})();
+</script>
