@@ -51,10 +51,18 @@
 
     // Find the date of the most recent Tuesday (or today if it is Tuesday)
     function getLastExpectedTuesday() {
-        const d = new Date();
-        const day = d.getDay(); // 0=Sun, 1=Mon, 2=Tue...
-        const diff = d.getDate() - day + (day < 2 ? -5 : 2);
-        return new Date(d.setDate(diff)).toISOString().split('T')[0];
+    const nowString = new Date().toLocaleString("en-US", {timeZone: "America/New_York"});
+    const d = new Date(nowString);
+    
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day < 2 ? -5 : 2);
+    d.setDate(diff);
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${date}`;
     }
 
     try {
